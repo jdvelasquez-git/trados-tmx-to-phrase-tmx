@@ -1,0 +1,62 @@
+# Required libraries and variables
+import os
+import xml.etree.ElementTree as ET
+creationid_tmx = []
+changeid_tmx = []
+userList = []
+tmxStructure = ""
+folderPath = ""
+targetLang = ""
+i = 0
+
+# Request a folder path to the user
+folderPath = input("What's the folder path of the TMX files you want to convert?\n NOTE (❗): The folder shall only contain your TMX files.")
+os.chdir(folderPath)
+print("Your selected folder path is:", folderPath)
+print("------------------------------------------")
+targetLang = input("What's the ISO code and locale of your target language? For example, Simplified Chinese is 'zh-CN'.")
+tmxStructure = "./body/tu/tuv[@{http://www.w3.org/XML/1998/namespace}lang=" + '"' + targetLang + '"' + "]"
+print("Updating TMX user metadata for target language:", targetLang)
+
+# Loop through all TMX files in the specified folder path
+for file in os.listdir():
+    if os.path.isfile(os.path.join(folderPath,file)):
+        tree = ET.parse(file)
+        root = tree.getroot()
+
+# Append TU creation and change ids to list variables
+    for child in root.find('./body'):
+        creationid_tmx.append(child.get('creationid'))
+        changeid_tmx.append(child.get('changeid'))
+        child.attrib.pop("creationid",None)
+        child.attrib.pop("changeid",None)
+
+# New "prop" tag with "created_by_value" inside target TUV
+    for child in root.findall(tmxStructure):
+        created_by_value = ET.SubElement(child,"prop",attrib={"type": "created_by"})
+        created_by_value.text = creationid_tmx[i]
+        modified_by_value = ET.SubElement(child,"prop",attrib={"type": "modified_by"})
+        modified_by_value.text = changeid_tmx[i]
+        i += 1
+
+# Build list of unique TM users
+    for user in creationid_tmx:
+        if user not in userList:
+            userList.append(user)
+    for user in changeid_tmx:
+        if user not in userList:
+            userList.append(user)
+
+# Print list of unique TM users for find/replace operation with other Pandas script
+    print("Here's a list of all your TMX usernames for external processing and mapping (one list per TMX file).")
+    for user in userList:
+        print(user)
+    print("****************************")
+
+    # Save new XML structure
+    tree.write(file + "_converted_" + ".tmx",encoding="utf-8", xml_declaration=True)
+
+# Input trick to read log
+print("You are all set!")
+print("------------------------------------------")
+input("Press any key to exit.")
